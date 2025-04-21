@@ -29,8 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-
-
 /**
  * 名前を生成するための画面を表す、コンポーザブル関数です。
  *
@@ -43,6 +41,7 @@ import androidx.compose.ui.unit.dp
 fun NameGeneratorScreen(
     modifier: Modifier = Modifier,
 ) {
+    var prompt by remember { mutableStateOf("") }
     var generatedText by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -55,31 +54,41 @@ fun NameGeneratorScreen(
                 Toast.LENGTH_SHORT
             ).show()
         },
-        onGenerate = { namePrompt ->
-            generatedText = namePrompt
+        onGenerate = {
+            Toast.makeText(
+                context,
+                "名前生成機能は未実装です。",
+                Toast.LENGTH_SHORT
+            ).show()
         },
-        generatedText = generatedText
+        generatedText = generatedText,
+        prompt = prompt,
+        onPromptChange = { prompt = it }
     )
 }
 
 /**
  * 名前生成画面用のコンポーザブル関数。
  *
- * この画面には、設定アイコンとメインコンテンツ領域を含むトップアプリバーが表示されます。
- * メインコンテンツ領域には、テキスト入力フィールドと名前生成ボタンがあります。生成された名前は下に表示されます。
+ * この画面には、ユーザー入力用のテキストフィールド（プロンプト）、名前生成をトリガーするボタン、
+ * 生成されたテキストを表示する領域があります。また、上部のアプリバーには設定ボタンも表示されます。
  *
- * @param modifier 画面レイアウトの修飾子。デフォルトは [Modifier] です。
- * @param onSettings トップアプリバーの設定アイコンがクリックされたときに呼び出されるコールバック関数。
+ * @param modifier レイアウトの修飾子。
+ * @param onSettings 設定ボタンがクリックされたときに呼び出されるコールバック関数。
+ * @param prompt ユーザーが入力した現在のプロンプトテキスト。
+ * @param onPromptChange プロンプトテキストが変更されたときに呼び出されるコールバック関数。
+ * 新しいプロンプトテキストをパラメーターとして受け取ります。
  * @param onGenerate 生成ボタンがクリックされたときに呼び出されるコールバック関数。
- * 名前生成時にユーザーが入力する文字列パラメータを受け取ります。
- * @param generatedText 生成された名前として表示されるテキスト。
+ * @param generatedText 名前生成プロセスによって生成されたテキスト。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NameGeneratorScreen(
     modifier: Modifier = Modifier,
     onSettings: () -> Unit,
-    onGenerate: (String) -> Unit,
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    onGenerate: () -> Unit,
     generatedText: String,
 ) {
     Scaffold(
@@ -107,31 +116,32 @@ fun NameGeneratorScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(8.dp),
+            prompt = prompt,
+            onPromptChange = onPromptChange,
             onGenerate = onGenerate,
             generatedText = generatedText,
         )
     }
 }
 
-
 /**
- * 名前生成インターフェースを表示するコンポーザブル関数。
+ * ユーザー指定のプロンプトに基づいて名前を生成するためのコンポーザブル関数。
  *
- * ユーザーは、名前生成のプロンプトを入力し、生成をトリガーし、生成されたテキストを表示できます。
- *
- * @param modifier コンテンツのレイアウトと外観をカスタマイズするための修飾子。
- * @param onGenerate 「生成」ボタンがクリックされたときに呼び出されるコールバック関数。
- * ユーザーのプロンプトを文字列として受け取ります。
- * @param generatedText 名前生成プロセスによって生成され、UIに表示されるテキスト。
+ * @param modifier このレイアウトに適用する修飾子。
+ * @param prompt ユーザーが入力した現在のテキスト。希望する名前の特徴を表します。
+ * @param onPromptChange ユーザーが入力テキストを変更したときに呼び出されるコールバック関数。
+ * 新しいプロンプトテキストをパラメーターとして受け取ります。
+ * @param onGenerate ユーザーが「生成」ボタンを押したときに呼び出されるコールバック関数。
+ * @param generatedText プロンプトに基づいて生成された名前を表すテキスト。ユーザーに表示されます。
  */
 @Composable
 fun NameGeneratorContent(
     modifier: Modifier = Modifier,
-    onGenerate: (String) -> Unit,
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    onGenerate: () -> Unit,
     generatedText: String,
 ) {
-    var namePrompt by remember { mutableStateOf("") }
-
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -139,13 +149,13 @@ fun NameGeneratorContent(
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(text = "どんな条件で名前を作成しますか？") },
-            value = namePrompt,
-            onValueChange = { namePrompt = it },
+            value = prompt,
+            onValueChange = onPromptChange,
             minLines = 5,
             trailingIcon = {
                 IconButton(
-                    enabled = namePrompt.isNotEmpty(),
-                    onClick = { namePrompt = "" },
+                    enabled = prompt.isNotEmpty(),
+                    onClick = { onPromptChange("") },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
@@ -156,8 +166,8 @@ fun NameGeneratorContent(
         )
 
         Button(
-            enabled = namePrompt.isNotEmpty(),
-            onClick = { onGenerate(namePrompt) },
+            enabled = prompt.isNotEmpty(),
+            onClick = onGenerate,
         ) {
             Text(text = "生成")
         }
