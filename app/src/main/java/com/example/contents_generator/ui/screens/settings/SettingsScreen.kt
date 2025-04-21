@@ -140,13 +140,14 @@ fun SettingsContent(
             onValueChange = onApiKeyChange,
             singleLine = true,
             trailingIcon = {
-                if (apiKey.isNotEmpty()) {
-                    IconButton(onClick = { onApiKeyChange("") }) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear",
-                        )
-                    }
+                IconButton(
+                    enabled = apiKey.isNotEmpty(),
+                    onClick = { onApiKeyChange("") },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear",
+                    )
                 }
             }
         )

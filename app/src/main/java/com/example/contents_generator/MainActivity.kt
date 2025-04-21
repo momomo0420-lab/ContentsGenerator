@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.contents_generator.ui.screens.name_generator.NameGeneratorScreen
 import com.example.contents_generator.ui.screens.settings.SettingsScreen
 import com.example.contents_generator.ui.theme.ContentsGeneratorTheme
 
@@ -13,7 +14,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ContentsGeneratorTheme {
-                SettingsScreen()
+                NameGeneratorScreen()
             }
         }
     }
