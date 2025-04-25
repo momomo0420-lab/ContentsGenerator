@@ -35,29 +35,27 @@ import androidx.compose.ui.unit.dp
  * 「戻る」および「保存」機能がまだ実装されていないことを示す Toast メッセージが表示されます。
  *
  * @param modifier 画面のルート要素に適用する修飾子。
+ * @param onBack ユーザーが戻ろうとしたときに呼び出されるコールバック。
  */
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    onBack: () -> Unit,
 ) {
     var apiKey by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     SettingsScreen(
         modifier = modifier.fillMaxSize(),
-        onBack = {
-            Toast.makeText(
-                context,
-                "戻る機能は未実装です。",
-                Toast.LENGTH_SHORT
-            ).show()
-        },
+        onBack = onBack,
         onSave = {
             Toast.makeText(
                 context,
                 "保存機能は未実装です。",
                 Toast.LENGTH_SHORT
             ).show()
+
+            onBack()
         },
         apiKey = apiKey,
         onApiKeyChange = { apiKey = it },
@@ -166,5 +164,7 @@ fun SettingsContent(
 @Preview
 @Composable
 private fun SettingsScreenPreview() {
-    SettingsScreen()
+    SettingsScreen(
+        onBack = {},
+    )
 }
