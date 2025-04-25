@@ -36,10 +36,14 @@ import androidx.compose.ui.unit.dp
  * 生成されたテキストを表示し、設定や生成ボタンによるユーザーインタラクションを処理します。
  *
  * @param modifier スタイルとレイアウト調整のための修飾子。デフォルトは空の修飾子です。
+ * @param navigateToSetting 設定画面へ遷移するためのコールバック関数。
+ *                          この関数は設定ボタンがクリックされた際に呼び出されます。
+ *
  */
 @Composable
 fun NameGeneratorScreen(
     modifier: Modifier = Modifier,
+    navigateToSetting: () -> Unit,
 ) {
     var prompt by remember { mutableStateOf("") }
     var generatedText by remember { mutableStateOf("") }
@@ -47,13 +51,7 @@ fun NameGeneratorScreen(
 
     NameGeneratorScreen(
         modifier = modifier.fillMaxWidth(),
-        onSettings = {
-            Toast.makeText(
-                context,
-                "設定機能は未実装です。",
-                Toast.LENGTH_SHORT
-            ).show()
-        },
+        onSettings = navigateToSetting,
         onGenerate = {
             Toast.makeText(
                 context,
@@ -186,5 +184,7 @@ fun NameGeneratorContent(
 @Preview
 @Composable
 private fun NameGeneratorScreenPreview() {
-    NameGeneratorScreen()
+    NameGeneratorScreen(
+        navigateToSetting = {},
+    )
 }
