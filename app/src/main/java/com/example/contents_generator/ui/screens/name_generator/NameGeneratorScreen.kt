@@ -1,14 +1,17 @@
 package com.example.contents_generator.ui.screens.name_generator
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -21,13 +24,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * 名前を生成するための画面を表す、コンポーザブル関数です。
@@ -44,24 +45,17 @@ import androidx.compose.ui.unit.dp
 fun NameGeneratorScreen(
     modifier: Modifier = Modifier,
     navigateToSetting: () -> Unit,
+    viewModel: NameGeneratorViewModel,
 ) {
-    var prompt by remember { mutableStateOf("") }
-    var generatedText by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     NameGeneratorScreen(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxSize(),
+        uiState = uiState,
         onSettings = navigateToSetting,
-        onGenerate = {
-            Toast.makeText(
-                context,
-                "名前生成機能は未実装です。",
-                Toast.LENGTH_SHORT
-            ).show()
-        },
-        generatedText = generatedText,
-        prompt = prompt,
-        onPromptChange = { prompt = it }
+        onPromptChange = viewModel::updatePrompt,
+        onGenerate = viewModel::generateName,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -72,22 +66,21 @@ fun NameGeneratorScreen(
  * 生成されたテキストを表示する領域があります。また、上部のアプリバーには設定ボタンも表示されます。
  *
  * @param modifier レイアウトの修飾子。
+ * @param uiState UIの現在の状態。
  * @param onSettings 設定ボタンがクリックされたときに呼び出されるコールバック関数。
- * @param prompt ユーザーが入力した現在のプロンプトテキスト。
  * @param onPromptChange プロンプトテキストが変更されたときに呼び出されるコールバック関数。
  * 新しいプロンプトテキストをパラメーターとして受け取ります。
  * @param onGenerate 生成ボタンがクリックされたときに呼び出されるコールバック関数。
- * @param generatedText 名前生成プロセスによって生成されたテキスト。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NameGeneratorScreen(
     modifier: Modifier = Modifier,
+    uiState: NameGeneratorUiState,
     onSettings: () -> Unit,
-    prompt: String,
     onPromptChange: (String) -> Unit,
     onGenerate: () -> Unit,
-    generatedText: String,
+    onRetry: () -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
@@ -110,15 +103,59 @@ fun NameGeneratorScreen(
             )
         }
     ) { innerPadding ->
-        NameGeneratorContent(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(8.dp),
-            prompt = prompt,
-            onPromptChange = onPromptChange,
-            onGenerate = onGenerate,
-            generatedText = generatedText,
-        )
+        val contentModifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+            .padding(8.dp)
+
+        when {
+            uiState.errorMessage != null -> {
+                ErrorContent(
+                    modifier = contentModifier,
+                    message = uiState.errorMessage,
+                    onRetry = onRetry,
+                )
+            }
+            else -> {
+                MainContent(
+                    modifier = contentModifier,
+                    isGenerating = uiState.isGenerating,
+                    prompt = uiState.prompt,
+                    onPromptChange = onPromptChange,
+                    onGenerate = onGenerate,
+                    generatedText = uiState.generatedText,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * エラーメッセージと再試行ボタンを表示します。
+ *
+ * このコンポーザブルは、ユーザーにエラー状態を表示するために使用され、
+ * 明確なメッセージと、失敗した操作を再試行するためのアクションを提供します。
+ *
+ * @param modifier エラーコンテンツのスタイルとレイアウトの修飾子。
+ * @param message 表示されるエラーメッセージ。
+ * @param onRetry 再試行ボタンがクリックされたときに呼び出されるコールバック関数。
+ */
+@Composable
+private fun ErrorContent(
+    modifier: Modifier,
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(message)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onRetry) {
+            Text(text = "再試行")
+        }
     }
 }
 
@@ -133,8 +170,9 @@ fun NameGeneratorScreen(
  * @param generatedText プロンプトに基づいて生成された名前を表すテキスト。ユーザーに表示されます。
  */
 @Composable
-fun NameGeneratorContent(
+private fun MainContent(
     modifier: Modifier = Modifier,
+    isGenerating: Boolean,
     prompt: String,
     onPromptChange: (String) -> Unit,
     onGenerate: () -> Unit,
@@ -163,11 +201,15 @@ fun NameGeneratorContent(
             }
         )
 
-        Button(
-            enabled = prompt.isNotEmpty(),
-            onClick = onGenerate,
-        ) {
-            Text(text = "生成")
+        if(isGenerating) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                enabled = prompt.isNotEmpty(),
+                onClick = onGenerate,
+            ) {
+                Text(text = "生成")
+            }
         }
 
         HorizontalDivider(
@@ -183,8 +225,29 @@ fun NameGeneratorContent(
 
 @Preview
 @Composable
-private fun NameGeneratorScreenPreview() {
+private fun MainPreview() {
     NameGeneratorScreen(
-        navigateToSetting = {},
+        uiState = NameGeneratorUiState(
+            prompt = "プロンプト",
+            generatedText = "生成されたテキスト",
+        ),
+        onSettings = {},
+        onPromptChange = {},
+        onGenerate = {},
+        onRetry = {},
+    )
+}
+
+@Preview
+@Composable
+private fun ErrorPreview() {
+    NameGeneratorScreen(
+        uiState = NameGeneratorUiState(
+            errorMessage = "エラーメッセージ",
+        ),
+        onSettings = {},
+        onPromptChange = {},
+        onGenerate = {},
+        onRetry = {},
     )
 }
