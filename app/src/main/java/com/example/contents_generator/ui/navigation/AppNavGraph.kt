@@ -2,7 +2,7 @@ package com.example.contents_generator.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -54,14 +54,14 @@ fun AppNavGraph(
         modifier = modifier
     ) {
         composable<Screen.NameGenerator> {
-            val viewModel: NameGeneratorViewModel = viewModel()
+            val viewModel: NameGeneratorViewModel = hiltViewModel()
             NameGeneratorScreen(
                 viewModel = viewModel,
                 navigateToSetting = { navController.navigate(Screen.Settings) }
             )
         }
         composable<Screen.Settings> {
-            val viewModel: SettingsViewModel = viewModel()
+            val viewModel: SettingsViewModel = hiltViewModel()
             SettingsScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() }
