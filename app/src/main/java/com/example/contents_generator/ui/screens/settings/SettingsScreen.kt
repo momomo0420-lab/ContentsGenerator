@@ -1,6 +1,7 @@
 package com.example.contents_generator.ui.screens.settings
 
-import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,14 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * アプリケーション設定を表示する画面。現在、この画面はプレースホルダであり、
@@ -41,24 +42,21 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
+    viewModel: SettingsViewModel
 ) {
-    var apiKey by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.initialize()
+    }
 
     SettingsScreen(
         modifier = modifier.fillMaxSize(),
+        uiState = uiState,
+        onApiKeyChange = viewModel::updateApiKey,
         onBack = onBack,
-        onSave = {
-            Toast.makeText(
-                context,
-                "保存機能は未実装です。",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            onBack()
-        },
-        apiKey = apiKey,
-        onApiKeyChange = { apiKey = it },
+        onSave = { viewModel.saveSettings(onBack) },
+        onRetry = viewModel::retry,
     )
 }
 
@@ -68,7 +66,7 @@ fun SettingsScreen(
  * この画面では、ユーザーは API キーなどのアプリケーション設定を表示および変更できます。
  *
  * @param modifier このコンポーザブルに適用する修飾子。
- * @param apiKey 現在の API キー。
+ * @param uiState UIの現在の状態。
  * @param onApiKeyChange ユーザーが API キーを変更したときに呼び出されるコールバック。新しい API キーをパラメーターとして受け取ります。
  * @param onBack ユーザーが戻るボタンを押したときに呼び出されるコールバック。
  * @param onSave ユーザーが保存ボタンを押したときに呼び出されるコールバック。
@@ -77,10 +75,11 @@ fun SettingsScreen(
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    apiKey: String,
+    uiState: SettingsUiState,
     onApiKeyChange: (String) -> Unit,
     onBack: () -> Unit,
     onSave: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
@@ -103,12 +102,83 @@ fun SettingsScreen(
             )
         }
     ) { innerPadding ->
-        SettingsContent(
-            modifier = Modifier.padding(innerPadding).padding(8.dp),
-            apiKey = apiKey,
-            onApiKeyChange = onApiKeyChange,
-            onSave = onSave,
-        )
+        val contentModifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+            .padding(8.dp)
+
+        when {
+            uiState.errorMessage != null -> {
+                ErrorContent(
+                    modifier = contentModifier,
+                    message = uiState.errorMessage,
+                    onRetry = onRetry,
+                )
+            }
+            uiState.apiKey == null -> {
+                InitContent(contentModifier)
+            }
+            else -> {
+                MainContent(
+                    modifier = contentModifier,
+                    apiKey = uiState.apiKey,
+                    onApiKeyChange = onApiKeyChange,
+                    onSave = onSave,
+                    isSaving = uiState.isSaving,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 中央揃えの円形のプログレスバーを表示します。
+ *
+ * このコンポーザブルは、データの読み込みやバックグラウンドタスクの実行など、
+ * プロセスが進行中であることを視覚的に示すために使用されます。
+ * `modifier` によって提供される利用可能なスペースの中央に、円形のプログレスバーをレンダリングします。
+ *
+ * @param modifier レイアウトに適用する修飾子。これにより、サイズ、パディング、
+ * 背景などのプロパティを制御できます。Box コンポーザブルは、この修飾子によって提供されるサイズ制約に従います。
+ */
+@Composable
+private fun InitContent(
+    modifier: Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+/**
+ * エラーメッセージと再試行ボタンを表示します。
+ *
+ * このコンポーザブルは、ユーザーにエラー状態を表示するために使用され、
+ * 明確なメッセージと、失敗した操作を再試行するためのアクションを提供します。
+ *
+ * @param modifier エラーコンテンツのスタイルとレイアウトの修飾子。
+ * @param message 表示されるエラーメッセージ。
+ * @param onRetry 再試行ボタンがクリックされたときに呼び出されるコールバック関数。
+ */
+@Composable
+private fun ErrorContent(
+    modifier: Modifier,
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(message)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onRetry) {
+            Text(text = "再試行")
+        }
     }
 }
 
@@ -121,8 +191,9 @@ fun SettingsScreen(
  * @param onSave 「保存」ボタンがクリックされたときに呼び出されるコールバック関数。
  */
 @Composable
-fun SettingsContent(
+private fun MainContent(
     modifier: Modifier = Modifier,
+    isSaving: Boolean,
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -152,11 +223,15 @@ fun SettingsContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Button(
-            enabled = apiKey.isNotEmpty(),
-            onClick = onSave,
-        ) {
-            Text(text = "保存")
+        if (isSaving) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                enabled = apiKey.isNotEmpty(),
+                onClick = onSave,
+            ) {
+                Text(text = "保存")
+            }
         }
     }
 }
@@ -165,6 +240,12 @@ fun SettingsContent(
 @Composable
 private fun SettingsScreenPreview() {
     SettingsScreen(
+        uiState = SettingsUiState(
+            apiKey = "test",
+        ),
+        onApiKeyChange = {},
         onBack = {},
+        onSave = {},
+        onRetry = {},
     )
 }
