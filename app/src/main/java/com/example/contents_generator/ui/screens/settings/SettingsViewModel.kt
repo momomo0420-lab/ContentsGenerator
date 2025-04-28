@@ -2,13 +2,14 @@ package com.example.contents_generator.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
+import com.example.contents_generator.data.repositories.user_settings.UserSettingsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 /**
  * 設定画面の UI 状態を表します。
@@ -31,9 +32,15 @@ data class SettingsUiState(
 /**
  * 設定画面の ViewModel。
  *
- * この ViewModel は UI の状態を管理し、API キーの取得、更新、保存など、設定に関連するユーザー操作を処理します。
+ * この ViewModel は設定画面の UI 状態を管理し、API キーの取得、更新、保存などの設定に関連するユーザー操作を処理します。
+ * また、データ取得や保存時のエラーハンドリングも行います。
+ *
+ * @property userSettingsRepository ユーザー設定のデータアクセスを提供するリポジトリ。
  */
-class SettingsViewModel : ViewModel() {
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    val userSettingsRepository: UserSettingsRepository,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
@@ -66,28 +73,19 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * アプリケーションに必要なデータと設定を初期化します。
+     * リポジトリからユーザー設定を取得して UI の状態を初期化します。
      *
-     * この関数は以下のアクションを実行します。
-     * 1. ViewModel のスコープ内でコルーチンを起動します。
-     * 2. 現在の設定の取得をシミュレートします (TODO: 実際のロジックに置き換えてください)。
-     * 3. IO ディスパッチャで `Thread.sleep()` を使用して 1 秒間実行を一時停止し、
-     * ネットワークまたはデータベース操作をシミュレートします。
-     * 4. シミュレートされたデータ取得が完了したら、空の API キーを使用して UI の状態を更新します。
-     *
-     * 注:
-     * - `TODO` コメントは、実際の設定を取得するためのロジックを実装する必要があることを示しています。
-     * - `Thread.sleep()` 呼び出しはシミュレーションのみを目的としており、本番環境では適切な非同期操作に置き換える必要があります。
-     * - この関数は viewModelScope を使用しており、ViewModel がクリアされるとキャンセルされます。
+     * 主な目的は、初期設定データ（特に API キー）を読み込み、
+     * このプロセス中に発生する可能性のあるエラーを適切に処理することです。
      */
     fun initialize() {
         viewModelScope.launch {
-            // TODO: 現在の設定を取得する処理
-            withContext(Dispatchers.IO) {
-                Thread.sleep(1000)
+            try {
+                val userSettings = userSettingsRepository.getUserSettings()
+                updateUiState(apiKey = userSettings.apiKey)
+            } catch (e: Exception) {
+                updateUiState(errorMessage = e.message)
             }
-
-            updateUiState(apiKey = "")
         }
     }
 
@@ -114,20 +112,13 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * 現在の設定を非同期に保存します。
+     * API キーを含む現在のユーザー設定を保存します。
      *
-     * この関数は、アプリケーションの設定を保存するプロセスを開始します。
-     * 1 秒の遅延を伴うバックグラウンド保存操作をシミュレートします。
-     * 保存中は、保存操作が進行中であることを示すために UI の状態を更新します。
-     * シミュレートされた保存操作が完了すると、保存が完了したことを示すために UI の状態を再度更新し、
-     * 指定されたコールバック関数を呼び出します。
+     * 保存プロセスが成功した場合、`onFinished` コールバックを呼び出します。
+     * 保存中に例外が発生した場合、エラーメッセージで UI の状態を更新します。
      *
-     * 実際の保存ロジック (現在は `Thread.sleep(1000)` で表されています) は、
-     * ファイルやデータベースへの書き込みなど、実際の設定の永続化メカニズムに置き換える必要があります。
-     *
-     * @param onFinished 保存操作の完了後に呼び出されるラムダ関数です。
-     * 指定されていない場合は、デフォルトで空のラムダになります。
-     * これは、別の画面への移動や確認メッセージの表示など、保存後のアクションを実行するために使用できます。
+     * @param onFinished 設定が正常に保存された後に呼び出されるラムダ関数です。
+     * デフォルトは空のラムダです。
      */
     fun saveSettings(
         onFinished: () -> Unit = {}
@@ -135,14 +126,18 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             updateUiState(isSaving = true)
 
-            //TODO: 保存処理
-            withContext(Dispatchers.IO) {
-                Thread.sleep(1000)
+            try {
+                userSettingsRepository.saveUserSettings(
+                    apiKey = uiState.value.apiKey ?: "",
+                )
+                updateUiState(isSaving = false)
+                onFinished()
+            } catch (e: Exception) {
+                updateUiState(
+                    isSaving = false,
+                    errorMessage = e.message
+                )
             }
-
-            updateUiState(isSaving = false)
-
-            onFinished()
         }
     }
 }
